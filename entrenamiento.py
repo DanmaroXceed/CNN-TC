@@ -12,12 +12,15 @@ from keras import Sequential, Input
 from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization # type: ignore
 from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping, ReduceLROnPlateau # type: ignore
 
+t = 150
+
 x_train = []
 y_train = []
 x_test = []
 y_test = []
 dataTr = []
-t = 150
+
+# ------------------ Carga de imágenes ------------------
 
 for filename in glob.glob(os.path.join('tumores/appcnn/train/yes', '*.jpg')):
 	dataTr.append([1,cv2.resize(cv2.imread(filename), dsize=(t,t), interpolation=cv2.INTER_CUBIC)])
@@ -25,6 +28,7 @@ for filename in glob.glob(os.path.join('tumores/appcnn/train/no', '*.jpg')):
 	dataTr.append([0,cv2.resize(cv2.imread(filename), dsize=(t,t), interpolation=cv2.INTER_CUBIC)])
 print("-----Extraccion de imagenes listo-----")
 
+# Mezclar y separar características y etiquetas
 from random import shuffle
 shuffle(dataTr)
 
@@ -35,8 +39,6 @@ for i, j in dataTr:
 x_train = np.array(x_train)/255
 y_train = np.array(y_train)
 
-##############################
-
 for filename in glob.glob(os.path.join('tumores/appcnn/test/yes', '*.jpg')):
 	x_test.append(cv2.resize(cv2.imread(filename), dsize=(t,t), interpolation=cv2.INTER_CUBIC))
 	y_test.append(1)
@@ -46,10 +48,6 @@ for filename in glob.glob(os.path.join('tumores/appcnn/test/no', '*.jpg')):
 
 x_test = np.array(x_test)/255
 y_test = np.array(y_test)
-
-##############################
-#######CREAR MODELO CNN#######
-##############################
 
 modelo = Sequential()
 # 1era Capa
@@ -140,6 +138,7 @@ print("Modelo entrenado exitosamente.")
 
 print(entrenamiento.history)
 
+# ------------------ Evaluación y Gráficas ------------------
 #Graficar accuracy
 
 plt.figure(0)
@@ -151,17 +150,20 @@ plt.xlabel('Num of Epochs')
 plt.ylabel('Accuracy')
 plt.title('Training accuracy vs Validation accuracy')
 plt.legend(['train', 'validacion'])
+plt.show()
 
 #Grafico de perdida
 
+plt.figure(1)
 plt.plot(entrenamiento.history['loss'], 'r')
 plt.plot(entrenamiento.history['val_loss'], 'g')
 plt.xticks(np.arange(0, epocas, 2.0))
-plt.rcParams['figure.figsize'] = (8,6)
+plt.rcParams['figure.figsize'] = (6,6)
 plt.xlabel('Num of Epochs')
 plt.ylabel('Loss')
 plt.title('Training loss vs Validation loss')
 plt.legend(['train', 'validacion'])
+plt.show()
 
 #Matriz de confusion
 
@@ -176,8 +178,10 @@ sbn.set_theme(font_scale=1.4)
 sbn.heatmap(entrenamiento_de_cm, annot=True, annot_kws={"size":22})
 plt.ylabel('Valor real')
 plt.xlabel('Predicciones')
+plt.title('Matriz de Confusión')
 plt.show()
 
+# Reporte
 cnn_report= classification_report(y_test, entrenamiento_predicted)
 print('Accuracy = {:.2f}'.format(accuracy_score(y_test,entrenamiento_predicted)))
 print(cnn_report)
