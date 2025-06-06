@@ -10,19 +10,7 @@ import sklearn.metrics as metrics
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report 
 from keras import Sequential, Input 
 from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization # type: ignore
-from keras.callbacks import Callback, ModelCheckpoint # type: ignore
-
-class DetenerPorValPrecision(Callback):
-    def __init__(self, precision_objetivo=0.99):
-        super().__init__()
-        self.precision_objetivo = precision_objetivo
-
-    def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
-        val_acc = logs.get('val_accuracy')
-        if val_acc is not None and val_acc >= self.precision_objetivo:
-            print(f"\n✔️ Se alcanzó val_accuracy = {val_acc:.4f}. Entrenamiento detenido.")
-            self.model.stop_training = True
+from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping, ReduceLROnPlateau # type: ignore
 
 x_train = []
 y_train = []
@@ -90,11 +78,11 @@ modelo.add(Flatten())
 
 # Capas densas
 modelo.add(Dense(128, activation='relu'))
-modelo.add(Dropout(0.4))  # Dropout más razonable
+modelo.add(Dropout(0.4))  
 modelo.add(Dense(64, activation='relu'))
-modelo.add(Dropout(0.3))  # Otro Dropout más leve
+modelo.add(Dropout(0.3))  
 modelo.add(Dense(32, activation='relu'))
-modelo.add(Dense(1, activation='sigmoid'))  # Clasificación binaria
+modelo.add(Dense(1, activation='sigmoid'))
 
 # Compilación
 modelo.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
@@ -103,8 +91,21 @@ modelo.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'
 modelo.summary()
 print("Configuracion de red: LISTO")
 
-# Entrenamiento
-epocas = 100
+epocas = 30
+
+# Funcion para detener el entrenamiento
+class DetenerPorValPrecision(Callback):
+    def __init__(self, precision_objetivo=0.99):
+        super().__init__()
+        self.precision_objetivo = precision_objetivo
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        val_acc = logs.get('val_accuracy')
+        if val_acc is not None and val_acc >= self.precision_objetivo:
+            print(f"\n✔️ Se alcanzó val_accuracy = {val_acc:.4f}. Entrenamiento detenido.")
+            self.model.stop_training = True
+
 detener_callback = DetenerPorValPrecision(precision_objetivo=0.99)
 
 # Callback para guardar el mejor modelo según val_accuracy
@@ -116,12 +117,23 @@ guardar_mejor_modelo = ModelCheckpoint(
     verbose=1
 )
 
+# Callback EarlyStopping estándar
+early_stopping = EarlyStopping(
+    monitor='val_accuracy',
+    patience=5,
+    mode='max',
+    verbose=1,
+    restore_best_weights=True
+)
+
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, verbose=1)
+
 entrenamiento = modelo.fit(
 	x_train, y_train,
 	batch_size=32,
 	epochs=epocas,
 	validation_data=(x_test, y_test),
-	callbacks=[detener_callback, guardar_mejor_modelo]
+	callbacks=[detener_callback, early_stopping, reduce_lr, guardar_mejor_modelo]
 )
 
 print("Modelo entrenado exitosamente.")
