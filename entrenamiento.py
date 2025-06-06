@@ -11,13 +11,15 @@ import pandas as pd
 import sklearn.metrics as metrics
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from keras import Sequential, Input
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization  # type: ignore
+from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization, GlobalAveragePooling2D  # type: ignore
 from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping, ReduceLROnPlateau  # type: ignore
 from random import shuffle
+from tensorflow.keras.regularizers import l2  # type: ignore
+from tensorflow.keras.optimizers import Adam  # type: ignore
 
 # === PARÁMETROS ===
 t = 150
-epocas = 30
+epocas = 50
 x_train, y_train = [], []
 x_test, y_test = [], []
 dataTr = []
@@ -64,11 +66,11 @@ modelo.add(Conv2D(32, (3, 3), activation='relu', padding='same'))
 modelo.add(BatchNormalization())
 modelo.add(MaxPooling2D(pool_size=(2, 2)))
 
-modelo.add(Conv2D(64, (3, 3), activation='relu', padding='same'))
+modelo.add(Conv2D(64, (3, 3), activation='relu', padding='same', kernel_regularizer=l2(0.001)))
 modelo.add(BatchNormalization())
 modelo.add(MaxPooling2D(pool_size=(2, 2)))
 
-modelo.add(Conv2D(128, (3, 3), activation='relu', padding='same'))
+modelo.add(Conv2D(128, (3, 3), activation='relu', padding='same', kernel_regularizer=l2(0.001)))
 modelo.add(BatchNormalization())
 modelo.add(MaxPooling2D(pool_size=(2, 2)))
 
@@ -86,7 +88,7 @@ modelo.add(Dense(32, activation='relu'))
 modelo.add(Dense(1, activation='sigmoid'))
 
 # Compilación
-modelo.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+modelo.compile(optimizer=Adam(1e-4), loss='binary_crossentropy', metrics=['accuracy'])
 modelo.summary()
 print("Configuracion de red: LISTO")
 
@@ -116,7 +118,7 @@ guardar_mejor_modelo = ModelCheckpoint(
 
 early_stopping = EarlyStopping(
     monitor='val_accuracy',
-    patience=5,
+    patience=12,
     mode='max',
     verbose=1,
     restore_best_weights=True
@@ -130,6 +132,7 @@ entrenamiento = modelo.fit(
     x_train, y_train,
     batch_size=32,
     epochs=epocas,
+    validation_split=0.2,
     validation_data=(x_test, y_test),
     callbacks=[detener_callback, early_stopping, reduce_lr, guardar_mejor_modelo]
 )

@@ -1,3 +1,4 @@
 /tesis
-/tumores
 *.keras
+/tumores/Br35H-Mask-RCNN
+/tumores/pred
